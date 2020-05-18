@@ -34,7 +34,7 @@ public class BarSprite {
             int randomNum = ThreadLocalRandom.current().nextInt(min, max + 1);
             if (randomNum == 1) { x = screenWidth/4; } //middle
             else if (randomNum==2) { x = 0; } // left
-            else { x = screenWidth/2; }
+            else { x = screenWidth/2; } //right
             y=0;
             System.out.println(randomNum);
             System.out.println(x);
