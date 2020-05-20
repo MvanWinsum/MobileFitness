@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "479115439221",
+    "firebase_url": "https://mobile-fitness-787c0.firebaseio.com",
+    "project_id": "mobile-fitness-787c0",
+    "storage_bucket": "mobile-fitness-787c0.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:479115439221:android:4b4129a2f9f8fa26961c3c",
+        "android_client_info": {
+          "package_name": "com.example.mobilefitness"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "479115439221-ba0ijmcquadl1qrqjh9mcls1dm89m77e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQbaHy6YkMVPXbdtRfRiqGnvpVGgkZlT0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "479115439221-ba0ijmcquadl1qrqjh9mcls1dm89m77e.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

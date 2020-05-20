@@ -9,20 +9,32 @@
         android:id="@+id/FirstFragment"
         android:name="com.example.mobilefitness.FirstFragment"
         android:label="@string/first_fragment_label"
-        tools:layout="@layout/fragment_first">
+        tools:layout="@layout/main_fragment">
 
         <action
             android:id="@+id/action_FirstFragment_to_SecondFragment"
             app:destination="@id/SecondFragment" />
+        <action
+            android:id="@+id/action_FirstFragment_to_faceRecognitionFragment"
+            app:destination="@id/faceRecognitionFragment" />
     </fragment>
     <fragment
         android:id="@+id/SecondFragment"
         android:name="com.example.mobilefitness.SecondFragment"
         android:label="@string/second_fragment_label"
-        tools:layout="@layout/fragment_second">
+        tools:layout="@layout/game_fragment">
 
         <action
             android:id="@+id/action_SecondFragment_to_FirstFragment"
+            app:destination="@id/FirstFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/faceRecognitionFragment"
+        android:name="com.example.mobilefitness.FaceRecognitionFragment"
+        android:label="fragment_face_recognition"
+        tools:layout="@layout/fragment_face_recognition" >
+        <action
+            android:id="@+id/action_faceRecognitionFragment_to_FirstFragment"
             app:destination="@id/FirstFragment" />
     </fragment>
 </navigation>
