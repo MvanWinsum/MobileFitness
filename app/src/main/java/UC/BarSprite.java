@@ -1,4 +1,4 @@
-package com.example.mobilefitness;
+package UC;
 
 import android.content.res.Resources;
 import android.graphics.Bitmap;
