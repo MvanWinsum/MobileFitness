@@ -72,7 +72,7 @@ public class FaceActivity extends AppCompatActivity {
         faceDetectButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Log.i("Mobile Fitness", "Capure button clicked!");
+                Log.i("Mobile Fitness", "Capture button clicked!");
                 alertDialog.show();
                 cameraKitView.captureImage(new CameraKitView.ImageCallback() {
                     @Override

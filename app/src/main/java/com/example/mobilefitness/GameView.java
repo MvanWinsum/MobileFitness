@@ -30,7 +30,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     public GameView(Context context) {
         super(context);
         getHolder().addCallback(this);
-
+        Constants.CURRENT_CONTEXTS = context;
         thread = new MainThread(getHolder(), this);
         playerPoint = new Point(Constants.SCREEN_WIDTH/2, 3*Constants.SCREEN_HEIGHT/4);
         player = new RectPlayer(new Rect(100, 100, 200, 200), Color.rgb(255,0,0));
