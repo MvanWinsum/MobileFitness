@@ -17,35 +17,20 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <Button
-        android:id="@+id/capture_button"
-        android:layout_width="103dp"
-        android:layout_height="48dp"
-        android:layout_marginStart="24dp"
-        android:layout_marginLeft="24dp"
-        android:layout_below="@+id/camera_frame"
-        android:background="@color/colorPrimary"
-        android:textColor="@android:color/white"
-        android:text="Capture"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
     <com.example.mobilefitness.Helper.GraphicOverlay
         android:id="@+id/graphic_overlay"
-        android:layout_above="@+id/capture_button"
+        android:layout_below="@+id/textView"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"/>
 
-    <com.camerakit.CameraKitView
+    <TextureView
         android:id="@+id/camera_frame"
         android:layout_width="match_parent"
-        android:layout_height="500dp"
+        android:layout_height="631dp"
+        android:layout_alignParentBottom="true"
         android:layout_marginTop="100dp"
+        android:layout_marginBottom="0dp"
         android:adjustViewBounds="true"
-        android:keepScreenOn="true"
-        app:camera_facing="front"
-        app:camera_flash="off"
-        app:camera_focus="continuous"
-        app:camera_permissions="camera" />
+        android:keepScreenOn="true" />
 
 </RelativeLayout>

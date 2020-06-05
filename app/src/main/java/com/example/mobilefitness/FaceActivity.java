@@ -1,55 +1,78 @@
 package com.example.mobilefitness;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import android.Manifest;
-import android.app.AlertDialog;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.ImageFormat;
 import android.graphics.Rect;
-import android.hardware.Camera;
-import android.hardware.SensorManager;
-import android.media.FaceDetector;
+import android.graphics.SurfaceTexture;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CameraMetadata;
+import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.CaptureResult;
+import android.hardware.camera2.TotalCaptureResult;
+import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.Image;
+import android.media.ImageReader;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.HandlerThread;
 import android.util.Log;
-import android.view.OrientationEventListener;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
-import android.view.View;
-import android.widget.Button;
-import android.widget.FrameLayout;
+import android.util.Size;
+import android.view.Surface;
+import android.view.TextureView;
 import android.widget.Toast;
 
-import com.camerakit.CameraKit;
-import com.camerakit.CameraKitView;
 import com.example.mobilefitness.Helper.GraphicOverlay;
 import com.example.mobilefitness.Helper.RectOverlay;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.FirebaseOptions;
-import com.google.firebase.ml.vision.FirebaseVision;
-import com.google.firebase.ml.vision.common.FirebaseVisionImage;
-import com.google.firebase.ml.vision.face.FirebaseVisionFace;
-import com.google.firebase.ml.vision.face.FirebaseVisionFaceDetector;
-import com.google.firebase.ml.vision.face.FirebaseVisionFaceDetectorOptions;
+import com.google.android.gms.tasks.Task;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.face.Face;
+import com.google.mlkit.vision.face.FaceDetection;
+import com.google.mlkit.vision.face.FaceDetector;
+import com.google.mlkit.vision.face.FaceDetectorOptions;
 
+import android.os.Handler;
+
+import org.jetbrains.annotations.NotNull;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
-import dmax.dialog.SpotsDialog;
+import static java.util.Arrays.asList;
 
 
 public class FaceActivity extends AppCompatActivity {
 
-    Button faceDetectButton;
     GraphicOverlay graphicOverlay;
-    CameraKitView cameraKitView;
-    AlertDialog alertDialog;
+    TextureView textureView;
+    Handler handler = new Handler();
+    Handler mBackgroundHandler;
+    HandlerThread mBackgroundThread;
+
+    private String cameraId;
+    CameraDevice cameraDevice;
+    CameraCaptureSession cameraCaptureSession;
+    CaptureRequest captureRequest;
+    CaptureRequest.Builder captureRequestBuilder;
+
+    private Size imageDimensions;
+    private ImageReader imageReader;
+
 
 
     @Override
@@ -57,104 +80,294 @@ public class FaceActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_face_recognition);
 
-        faceDetectButton = (Button)findViewById(R.id.capture_button);
-        graphicOverlay = (GraphicOverlay)findViewById(R.id.graphic_overlay);
-        cameraKitView = (CameraKitView)findViewById(R.id.camera_frame);
+        graphicOverlay = findViewById(R.id.graphic_overlay);
+        textureView = findViewById(R.id.camera_frame);
 
-        alertDialog = new SpotsDialog.Builder()
-                .setContext(this)
-                .setMessage("Please wait, Loading...")
-                .setCancelable(false).build();
-        cameraKitView.setFacing(CameraKit.FACING_FRONT);
-        cameraKitView.startVideo();
+        // Start the initial runnable task by posting through the handler
+        handler.post(runnableCode);
+    }
 
+    private final Runnable runnableCode = new Runnable() {
+        @Override
+        public void run() {
+            // Do something here on the main thread
+            Log.d("Handlers", "Called on main thread");
+            // Repeat this the same runnable code block again another 2 seconds
+            // 'this' is referencing the Runnable object
+            takePicture();
+            handler.postDelayed(this, 3000);
+        }
+    };
 
-        faceDetectButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Log.i("Mobile Fitness", "Capture button clicked!");
-                alertDialog.show();
-                cameraKitView.captureImage(new CameraKitView.ImageCallback() {
-                    @Override
-                    public void onImage(CameraKitView cameraKitView, byte[] bytes) {
-                        Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                        Bitmap mutableBitmap = bmp.copy(Bitmap.Config.ARGB_8888, true);
-                        mutableBitmap = Bitmap.createScaledBitmap(mutableBitmap,
-                                cameraKitView.getWidth(),
-                                cameraKitView.getHeight(),
-                                true
-                        );
+    private void takePicture() {
+        if (cameraDevice == null) {
+            return;
+        }
+        try {
+            CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+            CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
+            int width = 480;
+            int height = 640;
 
-                        processFaceDetection(mutableBitmap);
+            ImageReader reader = ImageReader.newInstance(width, height, ImageFormat.JPEG, 1);
+            List<Surface> outputSurfaces = new ArrayList<>(1);
+            outputSurfaces.add(reader.getSurface());
+            outputSurfaces.add(new Surface(textureView.getSurfaceTexture()));
+
+            CaptureRequest.Builder captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+            captureBuilder.addTarget(reader.getSurface());
+            captureBuilder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
+
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getWindowManager().getDefaultDisplay().getRotation());
+
+            Long tsLong = System.currentTimeMillis() / 1000;
+            String timestamp = tsLong.toString();
+
+            ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
+                @Override
+                public void onImageAvailable(ImageReader imageReader) {
+                    Image image = imageReader.acquireLatestImage();
+
+                    Log.d("FaceActivity", "Image captured: " + image.toString());
+                    processFaceDetection(image);
+                }
+            };
+            Log.d("Camera", "Capture Initiated");
+            reader.setOnImageAvailableListener(readerListener, mBackgroundHandler);
+
+            final CameraCaptureSession.CaptureCallback captureCallback = new CameraCaptureSession.CaptureCallback() {
+                @Override
+                public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
+                    super.onCaptureCompleted(session, request, result);
+                    createCameraPreview();
+                }
+            };
+
+            cameraDevice.createCaptureSession(outputSurfaces, new CameraCaptureSession.StateCallback() {
+                @Override
+                public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+                    try {
+                        cameraCaptureSession.capture(captureBuilder.build(), captureCallback, mBackgroundHandler);
+                    } catch (CameraAccessException e) {
+                        e.printStackTrace();
                     }
-                });
-                cameraKitView.invalidate();
-            }
-        });
+                }
+
+                @Override
+                public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+
+                }
+            },mBackgroundHandler);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
     }
 
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        cameraKitView.onStart();
+    TextureView.SurfaceTextureListener textureListener = new TextureView.SurfaceTextureListener() {
+        @Override
+        public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
+            openCamera();
+        }
+
+        @Override
+        public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
+
+        }
+
+        @Override
+        public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+            return false;
+        }
+
+        @Override
+        public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+
+        }
+    };
+
+    private void openCamera() {
+        CameraManager manager = (CameraManager)getSystemService(Context.CAMERA_SERVICE);
+
+        try {
+            // Get the front camera
+            cameraId = manager.getCameraIdList()[1];
+            CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+
+            // Map it to a stream
+            StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+
+            assert map != null;
+            imageDimensions = map.getOutputSizes(SurfaceTexture.class)[0];
+
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(FaceActivity.this, new String[]{Manifest.permission.CAMERA}, 101);
+                return;
+            }
+
+            manager.openCamera(cameraId, stateCallback, null);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private final CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
+        @Override
+        public void onOpened(@NonNull CameraDevice camera) {
+            cameraDevice = camera;
+            createCameraPreview();
+        }
+
+        @Override
+        public void onDisconnected(@NonNull CameraDevice camera) {
+            cameraDevice.close();
+        }
+
+        @Override
+        public void onError(@NonNull CameraDevice cameraDevice, int i) {
+            cameraDevice.close();
+            cameraDevice = null;
+        }
+    };
+
+    private void createCameraPreview() {
+        SurfaceTexture texture = textureView.getSurfaceTexture();
+        texture.setDefaultBufferSize(
+                imageDimensions.getWidth(),
+                imageDimensions.getHeight()
+        );
+        Surface surface = new Surface(texture);
+
+        try {
+            captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            captureRequestBuilder.addTarget(surface);
+            cameraDevice.createCaptureSession(Collections.singletonList(surface),
+                    new CameraCaptureSession.StateCallback() {
+                        @Override
+                        public void onConfigured(@NonNull CameraCaptureSession session) {
+                            if (cameraDevice == null) {
+                                return;
+                            }
+
+                            cameraCaptureSession = session;
+                            updatePreview();
+                        }
+
+                        @Override
+                        public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+                            Toast.makeText(getApplicationContext(), "Configuration failed!", Toast.LENGTH_LONG).show();
+                        }
+                    }, handler);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updatePreview() {
+        if (cameraDevice == null) {
+            return;
+        }
+
+        try {
+            captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, mBackgroundHandler);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        cameraKitView.onResume();
-    }
-
-    @Override
-    protected void onPause() {
-        cameraKitView.onPause();
-        super.onPause();
-    }
-
-    @Override
-    protected void onStop() {
-        cameraKitView.onStop();
-        super.onStop();
-    }
-
-    private void processFaceDetection(Bitmap bitmap) {
-        FirebaseVisionImage fbvImage = FirebaseVisionImage.fromBitmap(bitmap);
-
-        FirebaseVisionFaceDetectorOptions fbvOptions = new FirebaseVisionFaceDetectorOptions
-                .Builder().setClassificationMode(FirebaseVisionFaceDetectorOptions.ALL_CLASSIFICATIONS)
-                .enableTracking().build();
-
-        FirebaseVisionFaceDetector fbvDetector = FirebaseVision.getInstance()
-                .getVisionFaceDetector(fbvOptions);
-
-        fbvDetector.detectInImage(fbvImage).addOnSuccessListener(new OnSuccessListener<List<FirebaseVisionFace>>() {
-            @Override
-            public void onSuccess(List<FirebaseVisionFace> firebaseVisionFaces) {
-                getFaceResults(firebaseVisionFaces);
-            }
-        }).addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                Toast.makeText(FaceActivity.this, "Error: " + e, Toast.LENGTH_LONG).show();
-            }
-        });
-    }
-
-    private void getFaceResults(List<FirebaseVisionFace> fvbFaces) {
-        int counter = 0;
-        for (FirebaseVisionFace face : fvbFaces) {
-            Rect rect = face.getBoundingBox();
-            RectOverlay rectOverlay = new RectOverlay(graphicOverlay, rect);
-            counter++;
-            graphicOverlay.add(rectOverlay);
-            alertDialog.dismiss();
+        startBackgroundThread();
+        if (textureView.isAvailable()) {
+            openCamera();
+        } else {
+            textureView.setSurfaceTextureListener(textureListener);
         }
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    protected void onPause() {
+        handler.removeCallbacks(runnableCode);
+        stopBackgroundThread();
+        super.onPause();
+    }
+
+    protected void stopBackgroundThread() {
+        try {
+            mBackgroundThread.interrupt();
+            mBackgroundThread.join();
+            mBackgroundThread = null;
+            mBackgroundHandler = null;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void startBackgroundThread() {
+        mBackgroundThread = new HandlerThread("Camera Background");
+        mBackgroundThread.start();
+        mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
+    }
+
+    @Override
+    protected void onStop() {
+        handler.removeCallbacks(runnableCode);
+        super.onStop();
+    }
+
+    private void processFaceDetection(Image image) {
+        FaceDetectorOptions realTimeOpts =
+                new FaceDetectorOptions.Builder()
+                        .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
+                        .build();
+
+        InputImage faceImage = InputImage.fromMediaImage(image, 0);
+        FaceDetector faceDetector = FaceDetection.getClient(realTimeOpts);
+        Log.d("FaceActivity", "Face Detector initialized: " + faceDetector.toString());
+        Task<List<Face>> result =
+                faceDetector.process(faceImage)
+                        .addOnSuccessListener(
+                                faces -> {
+                                    Log.d("FaceActivity", "Faces:" + faces);
+                                    // Task completed successfully
+                                    int facesFound = getFaceResults(faces);
+                                    faceDetector.close();
+                                    Log.d("FaceActivity", "Face processed: " + facesFound);
+                                    Toast.makeText(FaceActivity.this, facesFound + " Faces found!", Toast.LENGTH_SHORT).show();
+                                })
+                        .addOnFailureListener(
+                                e -> {
+                                    // Task failed with an exception
+                                    Toast.makeText(
+                                            FaceActivity.this,
+                                            e.toString(),
+                                            Toast.LENGTH_LONG).show();
+                                    faceDetector.close();
+                                    Log.d("FaceActivity", "Error happened: " + e.toString());
+                                });
+    }
+
+    private int getFaceResults(@NotNull List<Face> fvbFaces) {
+        int counter = 0;
+        for (Face face : fvbFaces) {
+            Rect rect = face.getBoundingBox();
+            RectOverlay rectOverlay = new RectOverlay(graphicOverlay, rect);
+            Log.d("FaceActivity", "Rectangle for Face: " + rect.toString());
+            counter++;
+            graphicOverlay.add(rectOverlay);
+        }
+        return counter;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        cameraKitView.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 101) {
+            if (grantResults[0] == PackageManager.PERMISSION_DENIED) {
+                Toast.makeText(getApplicationContext(), "Sorry, permissions are required", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 }
