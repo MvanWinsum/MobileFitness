@@ -19,13 +19,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     private MainThread thread;
     private Rect r = new Rect();
-    //private BarSprite barSprite;
-    //private CharacterSprite characterSprite;
+    public int face_player_position;
     private RectPlayer player;
-    private Point playerPoint;
+    public Point playerPoint;
     private ObstacleManager obstacleManager;
     private boolean gameOver = false;
     private long gameOverTime;
+
+    static final int PLAYER_POSITION_LEFT = 0;
+    static final int PLAYER_POSITION_CENTER = 1;
+    static final int PLAYER_POSITION_RIGHT = 2;
+
 
     public GameView(Context context) {
         super(context);

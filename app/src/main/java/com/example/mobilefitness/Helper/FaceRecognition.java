@@ -1,8 +1,4 @@
-package com.example.mobilefitness;
-
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
+package com.example.mobilefitness.Helper;
 
 import android.Manifest;
 import android.content.Context;
@@ -20,15 +16,20 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
-import android.os.Bundle;
+import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
-import android.view.TextureView;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Toast;
 
-import com.example.mobilefitness.Helper.GraphicOverlay;
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
+
+import com.example.mobilefitness.FaceActivity;
+import com.example.mobilefitness.GameActivity;
 import com.google.android.gms.tasks.Task;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.face.Face;
@@ -36,13 +37,12 @@ import com.google.mlkit.vision.face.FaceDetection;
 import com.google.mlkit.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
 
-import android.os.Handler;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+public class FaceRecognition {
 
-public class FaceActivity extends AppCompatActivity {
 
     Handler handler = new Handler();
     Handler mBackgroundHandler;
@@ -56,16 +56,12 @@ public class FaceActivity extends AppCompatActivity {
     private Size imageDimensions;
 
 
+    private Context context;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_face_recognition);
-
-
-        // Start the initial runnable task by posting through the handler
-        handler.post(runnableCode);
+    public FaceRecognition(Context appContext) {
+        this.context = appContext;
     }
+
 
     private final Runnable runnableCode = new Runnable() {
         @Override
@@ -79,24 +75,20 @@ public class FaceActivity extends AppCompatActivity {
         }
     };
 
-
-
     private void takePicture() {
         if (cameraDevice == null) {
             return;
         }
         try {
-            CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-
             ImageReader reader = ImageReader.newInstance(imageDimensions.getWidth(), imageDimensions.getHeight(), ImageFormat.JPEG, 1);
-            List<Surface> outputSurfaces = new ArrayList<>(2);
+            List<Surface> outputSurfaces = new ArrayList<>(1);
             outputSurfaces.add(reader.getSurface());
 
             CaptureRequest.Builder captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             captureBuilder.addTarget(reader.getSurface());
             captureBuilder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
-
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getWindowManager().getDefaultDisplay().getRotation());
+            WindowManager windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, windowManager.getDefaultDisplay().getRotation());
 
             ImageReader.OnImageAvailableListener readerListener = imageReader -> {
                 Image image = imageReader.acquireLatestImage();
@@ -128,15 +120,15 @@ public class FaceActivity extends AppCompatActivity {
                 public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
 
                 }
-            },mBackgroundHandler);
+            }, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
 
 
-    private void openCamera() {
-        CameraManager manager = (CameraManager)getSystemService(Context.CAMERA_SERVICE);
+    public void openCamera() {
+        CameraManager manager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
 
         try {
             // Get the front camera
@@ -149,12 +141,9 @@ public class FaceActivity extends AppCompatActivity {
             assert map != null;
             imageDimensions = map.getOutputSizes(SurfaceTexture.class)[0];
 
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(FaceActivity.this, new String[]{Manifest.permission.CAMERA}, 101);
-                return;
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                manager.openCamera(cameraId, stateCallback, null);
             }
-
-            manager.openCamera(cameraId, stateCallback, null);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -199,12 +188,11 @@ public class FaceActivity extends AppCompatActivity {
                             }
 
                             cameraCaptureSession = session;
-//                            updatePreview();
                         }
 
                         @Override
                         public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
-                            Toast.makeText(getApplicationContext(), "Configuration failed!", Toast.LENGTH_LONG).show();
+                            Toast.makeText(context, "Configuration failed!", Toast.LENGTH_LONG).show();
                         }
                     }, handler);
         } catch (CameraAccessException e) {
@@ -212,35 +200,7 @@ public class FaceActivity extends AppCompatActivity {
         }
     }
 
-    private void updatePreview() {
-        if (cameraDevice == null) {
-            return;
-        }
-
-        try {
-            captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
-            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, mBackgroundHandler);
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-
-        openCamera();
-        startBackgroundThread();
-    }
-
-    @Override
-    protected void onPause() {
-        handler.removeCallbacks(runnableCode);
-        stopBackgroundThread();
-        super.onPause();
-    }
-
-    protected void stopBackgroundThread() {
+    public void stopBackgroundThread() {
         try {
             mBackgroundThread.interrupt();
             mBackgroundThread.join();
@@ -251,16 +211,12 @@ public class FaceActivity extends AppCompatActivity {
         }
     }
 
-    private void startBackgroundThread() {
+    public void startBackgroundThread() {
         mBackgroundThread = new HandlerThread("Camera Background");
         mBackgroundThread.start();
         mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
-    }
 
-    @Override
-    protected void onStop() {
-        handler.removeCallbacks(runnableCode);
-        super.onStop();
+        handler.post(runnableCode);
     }
 
     private void processFaceDetection(Image image) {
@@ -279,27 +235,17 @@ public class FaceActivity extends AppCompatActivity {
                                     Log.d("FaceActivity", "Faces:" + faces);
                                     faceDetector.close();
                                     Log.d("FaceActivity", "Face processed: " + faces.toArray().length);
-                                    Toast.makeText(FaceActivity.this, faces.toArray().length + " Faces found!", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(context, faces.toArray().length + " Faces found!", Toast.LENGTH_SHORT).show();
                                 })
                         .addOnFailureListener(
                                 e -> {
                                     // Task failed with an exception
                                     Toast.makeText(
-                                            FaceActivity.this,
+                                            context,
                                             e.toString(),
                                             Toast.LENGTH_LONG).show();
                                     faceDetector.close();
                                     Log.d("FaceActivity", "Error happened: " + e.toString());
                                 });
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == 101) {
-            if (grantResults[0] == PackageManager.PERMISSION_DENIED) {
-                Toast.makeText(getApplicationContext(), "Sorry, permissions are required", Toast.LENGTH_LONG).show();
-            }
-        }
     }
 }
