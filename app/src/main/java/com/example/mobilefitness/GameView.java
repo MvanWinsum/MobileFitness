@@ -40,17 +40,16 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         Constants.CURRENT_CONTEXTS = context;
         background = BitmapFactory.decodeResource(getResources(), R.drawable.bg);
         thread = new MainThread(getHolder(), this);
-        playerPoint = new Point(Constants.SCREEN_WIDTH/2, 3*Constants.SCREEN_HEIGHT/4);
-        player = new RectPlayer(new Rect(100, 100, 200, 200), Color.rgb(255,0,0));
+        playerPoint = new Point(Constants.SCREEN_WIDTH/2, (int)(3.4*Constants.SCREEN_HEIGHT/4));
+        player = new RectPlayer(new Rect(120, 120, 240, 240), Color.rgb(255,0,0));
         player.update(playerPoint);
         obstacleManager = new ObstacleManager(400, 850, 75, Color.BLACK);
-
         setFocusable(true);
     }
 
     public void reset () {
-        playerPoint = new Point(Constants.SCREEN_WIDTH/2, 3*Constants.SCREEN_HEIGHT/4);
-        player = new RectPlayer(new Rect(100, 100, 200, 200), Color.rgb(255,0,0));
+        playerPoint = new Point(Constants.SCREEN_WIDTH/2, (int)(3.4*Constants.SCREEN_HEIGHT/4));
+        player = new RectPlayer(new Rect(120, 120, 240, 240), Color.rgb(255,0,0));
         obstacleManager = new ObstacleManager(400, 850, 75, Color.BLACK);
     }
 
@@ -96,6 +95,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
+
     @SuppressLint("ClickableViewAccessibility")
     public boolean onTouchEvent (MotionEvent event) {
         switch(event.getAction()) {
@@ -105,7 +105,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
                     gameOver = false;
                 }
             case MotionEvent.ACTION_MOVE:
-                playerPoint.set((int)event.getX(), (int)event.getY());
+                System.out.println("reset");
         }
         return true;
         //return super.onTouchEvent(event);

@@ -21,10 +21,13 @@ public class RectPlayer implements GameObject {
         this.color = color;
 
         BitmapFactory bf = new BitmapFactory();
-        Bitmap idleImg = bf.decodeResource(Constants.CURRENT_CONTEXTS.getResources(), R.drawable.manidle);
-        Bitmap walk1 = bf.decodeResource(Constants.CURRENT_CONTEXTS.getResources(), R.drawable.manwalk1);
-        Bitmap walk2 = bf.decodeResource(Constants.CURRENT_CONTEXTS.getResources(), R.drawable.manwalk2);
-        Bitmap walk3 = bf.decodeResource(Constants.CURRENT_CONTEXTS.getResources(), R.drawable.manwalk3);
+        Bitmap idleImg = bf.decodeResource(Constants.CURRENT_CONTEXTS.getResources(), R.drawable.w_000);
+        Bitmap walk1 = bf.decodeResource(Constants.CURRENT_CONTEXTS.getResources(), R.drawable.w_006);
+        Bitmap walk2 = bf.decodeResource(Constants.CURRENT_CONTEXTS.getResources(), R.drawable.w_015);
+        Bitmap walk3 = bf.decodeResource(Constants.CURRENT_CONTEXTS.getResources(), R.drawable.w_036);
+        Bitmap walk4 = bf.decodeResource(Constants.CURRENT_CONTEXTS.getResources(), R.drawable.w_046);
+        Bitmap walk5 = bf.decodeResource(Constants.CURRENT_CONTEXTS.getResources(), R.drawable.w_054);
+        Bitmap walk6 = bf.decodeResource(Constants.CURRENT_CONTEXTS.getResources(), R.drawable.w_061);
 
         idle = new Animation(new Bitmap[]{idleImg}, 2);
         walkRight = new Animation(new Bitmap[]{walk1, walk2, walk3}, 0.5f);
@@ -34,8 +37,11 @@ public class RectPlayer implements GameObject {
         walk1 = Bitmap.createBitmap(walk1, 0, 0, walk1.getWidth(), walk1.getHeight(), m, false);
         walk2 = Bitmap.createBitmap(walk1, 0, 0, walk2.getWidth(), walk2.getHeight(), m, false);
         walk3 = Bitmap.createBitmap(walk1, 0, 0, walk3.getWidth(), walk3.getHeight(), m, false);
+        walk4 = Bitmap.createBitmap(walk1, 0, 0, walk3.getWidth(), walk4.getHeight(), m, false);
+        walk5 = Bitmap.createBitmap(walk1, 0, 0, walk3.getWidth(), walk5.getHeight(), m, false);
+        walk6 = Bitmap.createBitmap(walk1, 0, 0, walk3.getWidth(), walk6.getHeight(), m, false);
 
-        walkLeft = new Animation(new Bitmap[]{walk1, walk2, walk3}, 0.5f);
+        walkLeft = new Animation(new Bitmap[]{walk1, walk2, walk3, walk3, walk4, walk5, walk6}, 0.2f);
 
         animManager = new AnimationManager(new Animation[]{idle, walkRight, walkLeft});
 

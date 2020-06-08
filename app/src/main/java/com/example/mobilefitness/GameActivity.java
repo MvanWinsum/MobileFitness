@@ -283,7 +283,12 @@ public class GameActivity extends AppCompatActivity {
                         .addOnSuccessListener(
                                 faces -> {
                                     if (faces.toArray().length > 0) {
-                                        gameView.playerPoint.x = Constants.SCREEN_WIDTH - faces.get(0).getBoundingBox().centerX();
+                                       if (faces.get(0).getBoundingBox().centerX() > 0 && faces.get(0).getBoundingBox().centerX() < 800)
+                                           gameView.playerPoint.x = (5*(Constants.SCREEN_WIDTH/6));
+                                       if (faces.get(0).getBoundingBox().centerX() > 800 && faces.get(0).getBoundingBox().centerX() < 1300)
+                                           gameView.playerPoint.x = (Constants.SCREEN_WIDTH/2);
+                                       if (faces.get(0).getBoundingBox().centerX() > 1300)
+                                           gameView.playerPoint.x = (Constants.SCREEN_WIDTH/6);
                                     }
                                 })
                         .addOnFailureListener(
