@@ -59,6 +59,10 @@ public class GameActivity extends AppCompatActivity {
     CameraCaptureSession cameraCaptureSession;
     CaptureRequest.Builder captureRequestBuilder;
 
+    FaceDetectorOptions realTimeOpts;
+    InputImage faceImage;
+    FaceDetector faceDetector;
+
     private Size imageDimensions;
 
     @Override
@@ -89,7 +93,7 @@ public class GameActivity extends AppCompatActivity {
             // Repeat this the same runnable code block again another 2 seconds
             // 'this' is referencing the Runnable object
             takePicture();
-            handler.postDelayed(this, 400);
+            handler.postDelayed(this, 300);
         }
     };
 
@@ -152,6 +156,14 @@ public class GameActivity extends AppCompatActivity {
     private void openCamera() {
         CameraManager manager = (CameraManager)getSystemService(Context.CAMERA_SERVICE);
 
+
+         realTimeOpts =
+                new FaceDetectorOptions.Builder()
+                        .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
+                        .build();
+
+        faceDetector = FaceDetection.getClient(realTimeOpts);
+
         try {
             // Get the front camera
             cameraId = manager.getCameraIdList()[1];
@@ -211,9 +223,7 @@ public class GameActivity extends AppCompatActivity {
                             if (cameraDevice == null) {
                                 return;
                             }
-
                             cameraCaptureSession = session;
-//                            updatePreview();
                         }
 
                         @Override
@@ -226,23 +236,9 @@ public class GameActivity extends AppCompatActivity {
         }
     }
 
-    private void updatePreview() {
-        if (cameraDevice == null) {
-            return;
-        }
-
-        try {
-            captureRequestBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
-            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, mBackgroundHandler);
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
-    }
-
     @Override
     protected void onResume() {
         super.onResume();
-
         openCamera();
         startBackgroundThread();
     }
@@ -251,6 +247,7 @@ public class GameActivity extends AppCompatActivity {
     protected void onPause() {
         handler.removeCallbacks(runnableCode);
         stopBackgroundThread();
+        faceDetector.close();
         super.onPause();
     }
 
@@ -274,25 +271,20 @@ public class GameActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         handler.removeCallbacks(runnableCode);
+        stopBackgroundThread();
+        faceDetector.close();
         super.onStop();
     }
 
     private void processFaceDetection(Image image) {
-        FaceDetectorOptions realTimeOpts =
-                new FaceDetectorOptions.Builder()
-                        .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
-                        .build();
-
-        InputImage faceImage = InputImage.fromMediaImage(image,270);
-        FaceDetector faceDetector = FaceDetection.getClient(realTimeOpts);
-        Log.d("FaceActivity", "Face Detector initialized: " + faceDetector.toString());
+        faceImage = InputImage.fromMediaImage(image,270);
         Task<List<Face>> result =
                 faceDetector.process(faceImage)
                         .addOnSuccessListener(
                                 faces -> {
-                                    faceDetector.close();
-                                    gameView.playerPoint.x = Constants.SCREEN_WIDTH - faces.get(0).getBoundingBox().centerX();
-                                    Toast.makeText(GameActivity.this, faces.toArray().length + " Faces found!", Toast.LENGTH_SHORT).show();
+                                    if (faces.toArray().length > 0) {
+                                        gameView.playerPoint.x = Constants.SCREEN_WIDTH - faces.get(0).getBoundingBox().centerX();
+                                    }
                                 })
                         .addOnFailureListener(
                                 e -> {
@@ -301,7 +293,6 @@ public class GameActivity extends AppCompatActivity {
                                             GameActivity.this,
                                             e.toString(),
                                             Toast.LENGTH_LONG).show();
-                                    faceDetector.close();
                                     Log.d("FaceActivity", "Error happened: " + e.toString());
                                 });
     }
