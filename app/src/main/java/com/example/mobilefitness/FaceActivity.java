@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.content.Context;
@@ -27,6 +28,7 @@ import android.media.Image;
 import android.media.ImageReader;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.HandlerThread;
 import android.util.Log;
 import android.util.Size;
@@ -47,6 +49,11 @@ import android.os.Handler;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -105,12 +112,9 @@ public class FaceActivity extends AppCompatActivity {
         }
         try {
             CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-            CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraDevice.getId());
-            int width = 480;
-            int height = 640;
 
-            ImageReader reader = ImageReader.newInstance(width, height, ImageFormat.JPEG, 1);
-            List<Surface> outputSurfaces = new ArrayList<>(1);
+            ImageReader reader = ImageReader.newInstance(imageDimensions.getWidth(), imageDimensions.getHeight(), ImageFormat.JPEG, 1);
+            List<Surface> outputSurfaces = new ArrayList<>(2);
             outputSurfaces.add(reader.getSurface());
             outputSurfaces.add(new Surface(textureView.getSurfaceTexture()));
 
@@ -119,9 +123,6 @@ public class FaceActivity extends AppCompatActivity {
             captureBuilder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
 
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getWindowManager().getDefaultDisplay().getRotation());
-
-            Long tsLong = System.currentTimeMillis() / 1000;
-            String timestamp = tsLong.toString();
 
             ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
                 @Override
@@ -323,7 +324,7 @@ public class FaceActivity extends AppCompatActivity {
                         .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
                         .build();
 
-        InputImage faceImage = InputImage.fromMediaImage(image, 0);
+        InputImage faceImage = InputImage.fromMediaImage(image,270);
         FaceDetector faceDetector = FaceDetection.getClient(realTimeOpts);
         Log.d("FaceActivity", "Face Detector initialized: " + faceDetector.toString());
         Task<List<Face>> result =
