@@ -2,12 +2,14 @@ package com.example.mobilefitness;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
@@ -25,6 +27,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private ObstacleManager obstacleManager;
     private boolean gameOver = false;
     private long gameOverTime;
+    Bitmap background;
 
     static final int PLAYER_POSITION_LEFT = 0;
     static final int PLAYER_POSITION_CENTER = 1;
@@ -35,6 +38,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         super(context);
         getHolder().addCallback(this);
         Constants.CURRENT_CONTEXTS = context;
+        background = BitmapFactory.decodeResource(getResources(), R.drawable.bg);
         thread = new MainThread(getHolder(), this);
         playerPoint = new Point(Constants.SCREEN_WIDTH/2, 3*Constants.SCREEN_HEIGHT/4);
         player = new RectPlayer(new Rect(100, 100, 200, 200), Color.rgb(255,0,0));
@@ -103,16 +107,17 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
             case MotionEvent.ACTION_MOVE:
                 playerPoint.set((int)event.getX(), (int)event.getY());
         }
-
         return true;
         //return super.onTouchEvent(event);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
     public void draw(Canvas canvas) {
         super.draw(canvas);
-        canvas.drawColor(Color.WHITE);
-        //barSprite.draw(canvas);
+        canvas.getClipBounds(r);
+        Rect dest = new Rect(0, 0, r.width(), r.height());
+        canvas.drawBitmap(background, null, dest, null);
         player.draw(canvas);
         obstacleManager.draw(canvas);
         if(gameOver) {

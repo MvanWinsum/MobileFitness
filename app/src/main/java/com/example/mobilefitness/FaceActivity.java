@@ -1,13 +1,18 @@
 package com.example.mobilefitness;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
+import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -16,11 +21,14 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.HandlerThread;
 import android.util.Log;
 import android.util.Size;
@@ -29,6 +37,7 @@ import android.view.TextureView;
 import android.widget.Toast;
 
 import com.example.mobilefitness.Helper.GraphicOverlay;
+import com.example.mobilefitness.Helper.RectOverlay;
 import com.google.android.gms.tasks.Task;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.face.Face;
@@ -37,13 +46,27 @@ import com.google.mlkit.vision.face.FaceDetector;
 import com.google.mlkit.vision.face.FaceDetectorOptions;
 
 import android.os.Handler;
+
+import org.jetbrains.annotations.NotNull;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+
+import static java.util.Arrays.asList;
 
 
 public class FaceActivity extends AppCompatActivity {
 
+    GraphicOverlay graphicOverlay;
+    TextureView textureView;
     Handler handler = new Handler();
     Handler mBackgroundHandler;
     HandlerThread mBackgroundThread;
@@ -51,9 +74,11 @@ public class FaceActivity extends AppCompatActivity {
     private String cameraId;
     CameraDevice cameraDevice;
     CameraCaptureSession cameraCaptureSession;
+    CaptureRequest captureRequest;
     CaptureRequest.Builder captureRequestBuilder;
 
     private Size imageDimensions;
+    private ImageReader imageReader;
 
 
 
@@ -62,6 +87,8 @@ public class FaceActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_face_recognition);
 
+        graphicOverlay = findViewById(R.id.graphic_overlay);
+        textureView = findViewById(R.id.camera_frame);
 
         // Start the initial runnable task by posting through the handler
         handler.post(runnableCode);
@@ -75,11 +102,9 @@ public class FaceActivity extends AppCompatActivity {
             // Repeat this the same runnable code block again another 2 seconds
             // 'this' is referencing the Runnable object
             takePicture();
-            handler.postDelayed(this, 2000);
+            handler.postDelayed(this, 3000);
         }
     };
-
-
 
     private void takePicture() {
         if (cameraDevice == null) {
@@ -91,6 +116,7 @@ public class FaceActivity extends AppCompatActivity {
             ImageReader reader = ImageReader.newInstance(imageDimensions.getWidth(), imageDimensions.getHeight(), ImageFormat.JPEG, 1);
             List<Surface> outputSurfaces = new ArrayList<>(2);
             outputSurfaces.add(reader.getSurface());
+            outputSurfaces.add(new Surface(textureView.getSurfaceTexture()));
 
             CaptureRequest.Builder captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             captureBuilder.addTarget(reader.getSurface());
@@ -98,11 +124,14 @@ public class FaceActivity extends AppCompatActivity {
 
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getWindowManager().getDefaultDisplay().getRotation());
 
-            ImageReader.OnImageAvailableListener readerListener = imageReader -> {
-                Image image = imageReader.acquireLatestImage();
+            ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
+                @Override
+                public void onImageAvailable(ImageReader imageReader) {
+                    Image image = imageReader.acquireLatestImage();
 
-                Log.d("FaceActivity", "Image captured: " + image.toString());
-                processFaceDetection(image);
+                    Log.d("FaceActivity", "Image captured: " + image.toString());
+                    processFaceDetection(image);
+                }
             };
             Log.d("Camera", "Capture Initiated");
             reader.setOnImageAvailableListener(readerListener, mBackgroundHandler);
@@ -111,6 +140,7 @@ public class FaceActivity extends AppCompatActivity {
                 @Override
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
                     super.onCaptureCompleted(session, request, result);
+                    createCameraPreview();
                 }
             };
 
@@ -134,6 +164,28 @@ public class FaceActivity extends AppCompatActivity {
         }
     }
 
+
+    TextureView.SurfaceTextureListener textureListener = new TextureView.SurfaceTextureListener() {
+        @Override
+        public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int i, int i1) {
+            openCamera();
+        }
+
+        @Override
+        public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int i, int i1) {
+
+        }
+
+        @Override
+        public boolean onSurfaceTextureDestroyed(SurfaceTexture surfaceTexture) {
+            return false;
+        }
+
+        @Override
+        public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
+
+        }
+    };
 
     private void openCamera() {
         CameraManager manager = (CameraManager)getSystemService(Context.CAMERA_SERVICE);
@@ -180,7 +232,7 @@ public class FaceActivity extends AppCompatActivity {
     };
 
     private void createCameraPreview() {
-        SurfaceTexture texture = new SurfaceTexture(1);
+        SurfaceTexture texture = textureView.getSurfaceTexture();
         texture.setDefaultBufferSize(
                 imageDimensions.getWidth(),
                 imageDimensions.getHeight()
@@ -199,7 +251,7 @@ public class FaceActivity extends AppCompatActivity {
                             }
 
                             cameraCaptureSession = session;
-//                            updatePreview();
+                            updatePreview();
                         }
 
                         @Override
@@ -228,9 +280,12 @@ public class FaceActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
-        openCamera();
         startBackgroundThread();
+        if (textureView.isAvailable()) {
+            openCamera();
+        } else {
+            textureView.setSurfaceTextureListener(textureListener);
+        }
     }
 
     @Override
@@ -277,9 +332,11 @@ public class FaceActivity extends AppCompatActivity {
                         .addOnSuccessListener(
                                 faces -> {
                                     Log.d("FaceActivity", "Faces:" + faces);
+                                    // Task completed successfully
+                                    int facesFound = getFaceResults(faces);
                                     faceDetector.close();
-                                    Log.d("FaceActivity", "Face processed: " + faces.toArray().length);
-                                    Toast.makeText(FaceActivity.this, faces.toArray().length + " Faces found!", Toast.LENGTH_SHORT).show();
+                                    Log.d("FaceActivity", "Face processed: " + facesFound);
+                                    Toast.makeText(FaceActivity.this, facesFound + " Faces found!", Toast.LENGTH_SHORT).show();
                                 })
                         .addOnFailureListener(
                                 e -> {
@@ -291,6 +348,18 @@ public class FaceActivity extends AppCompatActivity {
                                     faceDetector.close();
                                     Log.d("FaceActivity", "Error happened: " + e.toString());
                                 });
+    }
+
+    private int getFaceResults(@NotNull List<Face> fvbFaces) {
+        int counter = 0;
+        for (Face face : fvbFaces) {
+            Rect rect = face.getBoundingBox();
+            RectOverlay rectOverlay = new RectOverlay(graphicOverlay, rect);
+            Log.d("FaceActivity", "Rectangle for Face: " + rect.toString());
+            counter++;
+            graphicOverlay.add(rectOverlay);
+        }
+        return counter;
     }
 
     @Override
