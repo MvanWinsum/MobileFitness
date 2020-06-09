@@ -90,7 +90,6 @@ public class GameActivity extends AppCompatActivity {
     private final Runnable runnableCode = new Runnable() {
         @Override
         public void run() {
-            Log.d("Mobile Fitness", "FrameProcessed: " + frameProcessed);
             if (frameProcessed) {
                 frameProcessed = false;
                 takePicture();
@@ -153,6 +152,7 @@ public class GameActivity extends AppCompatActivity {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
+        frameProcessed = true;
     }
 
 
