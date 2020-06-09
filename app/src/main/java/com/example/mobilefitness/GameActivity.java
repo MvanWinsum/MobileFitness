@@ -211,8 +211,8 @@ public class GameActivity extends AppCompatActivity {
     private void createCameraPreview() {
         SurfaceTexture texture = new SurfaceTexture(1);
         texture.setDefaultBufferSize(
-                imageDimensions.getWidth(),
-                imageDimensions.getHeight()
+                Constants.SCREEN_WIDTH,
+                Constants.SCREEN_HEIGHT
         );
         Surface surface = new Surface(texture);
 
