@@ -61,6 +61,8 @@ public class GameActivity extends AppCompatActivity {
 
     FaceDetectorOptions realTimeOpts;
     InputImage faceImage;
+
+    Boolean frameProcessed = true;
     FaceDetector faceDetector;
 
     private Size imageDimensions;
@@ -88,12 +90,12 @@ public class GameActivity extends AppCompatActivity {
     private final Runnable runnableCode = new Runnable() {
         @Override
         public void run() {
-            // Do something here on the main thread
-            Log.d("Handlers", "Called on main thread");
-            // Repeat this the same runnable code block again another 2 seconds
-            // 'this' is referencing the Runnable object
-            takePicture();
-            handler.postDelayed(this, 300);
+            Log.d("Mobile Fitness", "FrameProcessed: " + frameProcessed);
+            if (frameProcessed) {
+                frameProcessed = false;
+                takePicture();
+            }
+            handler.postDelayed(this, 200);
         }
     };
 
@@ -121,6 +123,7 @@ public class GameActivity extends AppCompatActivity {
 
                 Log.d("FaceActivity", "Image captured: " + image.toString());
                 processFaceDetection(image);
+                frameProcessed = true;
             };
             Log.d("Camera", "Capture Initiated");
             reader.setOnImageAvailableListener(readerListener, mBackgroundHandler);
@@ -298,7 +301,7 @@ public class GameActivity extends AppCompatActivity {
                                             GameActivity.this,
                                             e.toString(),
                                             Toast.LENGTH_LONG).show();
-                                    Log.d("FaceActivity", "Error happened: " + e.toString());
+                                    Log.d("FaceActivity", "Error happened: " + e.getMessage());
                                 });
     }
 }
